@@ -1,9 +1,19 @@
 #include <arpa/inet.h>
+//#include <err.h>
+#include <pthread.h>
 #include <netinet/in.h>
 #include <netdb.h>
+//#include <stdio.h>
+//#include <stdlib.h>
+//#include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <stdio.h>
-#include <stdlib.h>
+//#include <unistd.h>
 
+#include "client.h"
 
+void *client_start(void *data)
+{
+	pthread_exit(NULL);
+	return NULL;
+}

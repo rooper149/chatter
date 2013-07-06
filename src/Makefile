@@ -6,7 +6,7 @@ PROG=		chatter
 
 SRC=		chatter.c client.c server.c #cmd.c
 OBJ=		$(SRC:.c=.o)
-VERSION=	0.0.1
+VERSION=	0.0.2
 OPTS=		-DVERSION=\"$(VERSION)\" #-DNDEBUG 
 
 CC =		gcc
@@ -22,18 +22,12 @@ $(PROG): $(OBJ)
 	$(CC) -o $@ $(OBJ) $(LFLAGS) $(LDFLAGS)
 
 .c.o:
-	@echo -ne \\t Compiling $< ..
-	@$(CC) -c $(OPTS) $(CFLAGS) $<
-	@echo " done."
+	$(CC) -c $(OPTS) $(CFLAGS) $<
 
 install:
-	@echo -ne \\t Installing executable to $(INSTALL) ..
-	@cp $(PROG) $(INSTALL)
-	@echo " done."
+	cp $(PROG) $(INSTALL)
 
 clean:
-	@echo -ne \\t Removing object files
-	@rm -f $(PROG) *.o $(.CURDIR)/*.BAK 
-	@echo " done."
+	rm -f $(PROG) *.o
 
 .PHONY: clean all

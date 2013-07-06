@@ -14,20 +14,22 @@ int main(int argc, char **argv)
 	/* Choosing sane default values */
 	char peerIP[32] = "127.0.0.1";
 	int listenPort = 1025, peerPort = 1025;
-	int c = 0;
+	int opt = 0;
 
 	/* Parse command line options */
-	while((c = getopt(argc, argv, "l:p:h:")) != -1) {
-		switch(c)
+	while ((opt = getopt(argc, argv, "h:l:p:")) != -1) {
+		switch (opt)
 		{
-			case 'l': /* Listen port */
-				listenPort = atoi(optarg);
-				break;
-			case 'p': /* Communicate port */
-				peerPort = atoi(optarg);
-				break;
 			case 'h': /* Host (Peer IP) */
 				strncpy(peerIP, optarg, sizeof(peerIP));
+				break;
+			case 'l': /* Local listen port */
+				/* XXX Make this more robust */
+				listenPort = atoi(optarg);
+				break;
+			case 'p': /* Host port */
+				/* XXX Make this more robust */
+				peerPort = atoi(optarg);
 				break;
 			default:
 				exit(EXIT_FAILURE);
@@ -55,7 +57,7 @@ int main(int argc, char **argv)
 	/* Destroy the attribute object */
 	pthread_attr_destroy(&attr);
 
-	/*
+	/* TODO
 	 * ----------------------------------------------------
 	 * Some point in here the program will call the chatter
 	 * ----------------------------------------------------
