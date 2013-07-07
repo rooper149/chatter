@@ -13,7 +13,7 @@
 #include "server.h"
 
 extern pthread_mutex_t IO_mutex;
-extern pthread_mutex_t SERV_mutex;
+extern pthread_mutex_t BUF_mutex;
 
 void *server_start(void *args)
 {
@@ -22,7 +22,7 @@ void *server_start(void *args)
 	int SocketFD;
 
 	pthread_mutex_lock(&IO_mutex);
-	printf("Server listen Port: %d\n", data->listen);
+		printf("Server listen Port: %d\n", data->listen);
 	pthread_mutex_unlock(&IO_mutex);
 
 	SocketFD = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -38,7 +38,7 @@ void *server_start(void *args)
 	SockAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	if (bind(SocketFD, (struct sockaddr *)&SockAddr, sizeof(struct sockaddr_in)) == -1) {
-		perror("Binding failed");
+		perror("Bind failed");
 		close(SocketFD);
 		exit(EXIT_FAILURE);
 	}
@@ -57,14 +57,18 @@ void *server_start(void *args)
 		exit(EXIT_FAILURE);
 	}
 
-	printf("Established a Connection ..\n");
+	/* This is an internal buffer, filled with data sent accross the
+	 * network, does not need to be thread-safe. */
+	char netBuf[100];
 
-	char buf[20];
-	char *killMSG = "/exit";
-	while(strstr(buf, killMSG) != buf){
-		recv(ConnectFD, buf, sizeof(buf), 0);
+	/* We can do this fine. Compiler initializes automatic memory for '/exit'
+	 * and points killBuf to it.
+	 */
+	char *killBuf = "/exit";
+	while(strstr(netBuf, killBuf) != netBuf){
+		recv(ConnectFD, netBuf, sizeof(netBuf), 0);
 		pthread_mutex_lock(&IO_mutex);
-		printf("%s", buf);
+			printf("%s", netBuf);
 		pthread_mutex_unlock(&IO_mutex);
 	}
 
@@ -74,12 +78,14 @@ void *server_start(void *args)
 		close(SocketFD);
 		exit(EXIT_FAILURE);
 	}
-	close(ConnectFD);
 
+	close(ConnectFD);
 	close(SocketFD);
+
 	pthread_mutex_lock(&IO_mutex);
-	printf("Server finished\n");
+		printf("Server finished\n");
 	pthread_mutex_unlock(&IO_mutex);
+
 	pthread_exit(NULL);
 	return NULL;
 }

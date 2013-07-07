@@ -4,7 +4,7 @@ SHELL=		/bin/sh
 INSTALL=	/usr/local/bin
 PROG=		chatter
 
-SRC=		chatter.c client.c server.c #cmd.c
+SRC=		chatter.c client.c server.c
 OBJ=		$(SRC:.c=.o)
 VERSION=	0.0.2
 OPTS=		-DVERSION=\"$(VERSION)\" #-DNDEBUG 

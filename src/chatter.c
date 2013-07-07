@@ -1,6 +1,9 @@
+#define _GNU_SOURCE /* readline(3) */
 #include <err.h>
 #include <getopt.h>
+#include <locale.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,21 +12,28 @@
 #include "server.h"
 #include "client.h"
 
+#define BUFLENGTH 100
+
 pthread_mutex_t IO_mutex;
-pthread_mutex_t SERV_mutex;
+pthread_mutex_t BUF_mutex;
+
+char *line;
 
 int main(int argc, char **argv)
 {
+	setlocale(LC_ALL, "");
+
 	/* Choosing sane default values */
 	char peerIP[32] = "127.0.0.1";
 	int listenPort = 1025, peerPort = 1025;
-	int opt = 0;
+
+	pthread_attr_t attr;
 	pthread_t ClientThread, ServerThread;
 	struct Server_arg ServerArg;
 	struct Client_arg ClientArg;
-	pthread_attr_t attr;
 
 	/* Parse command line options */
+	int opt = 0;
 	while ((opt = getopt(argc, argv, "h:l:p:")) != -1) {
 		switch (opt)
 		{
@@ -62,14 +72,15 @@ int main(int argc, char **argv)
 
 	pthread_attr_destroy(&attr);
 
-	/* TODO
-	 * ----------------------------------------------------
-	 * Some point in here the program will call the chatter
-	 * ----------------------------------------------------
-	 */
-	/* XXX Temp busy wait to test threads */
-	for (;;)
-		;
+	line = malloc(sizeof(char) * BUFLENGTH);
+	size_t len = BUFLENGTH;
+	while (strstr(line, "/exit") != line) {
+		pthread_mutex_lock(&BUF_mutex);
+			printf(": ");
+			getline(&line, &len, stdin);
+		pthread_mutex_unlock(&BUF_mutex);
+	}
 
+	free(line);
 	return (0);
 }

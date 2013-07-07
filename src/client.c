@@ -7,14 +7,17 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <time.h>
 #include <unistd.h>
 
-#include <time.h>
+#define BUFLENGTH 100
 
 #include "client.h"
 
 extern pthread_mutex_t IO_mutex;
-extern pthread_mutex_t SERV_mutex;
+extern pthread_mutex_t BUF_mutex;
+
+extern char *line;
 
 void *client_start(void *args)
 {
@@ -24,16 +27,22 @@ void *client_start(void *args)
 	int SocketFD;
 	int Res;
 
+	/* Consider making this idiom a MACRO */
 	pthread_mutex_lock(&IO_mutex);
-	printf("Connecting to %s:%d\n", data->peerIP, data->peerPort);
+		printf("Connecting to %s:%d\n", data->peerIP, data->peerPort);
 	pthread_mutex_unlock(&IO_mutex);
 
-	/* Sleep for a second to allow the server to initialize */
+	/* TODO Make this more robust */
+	/* Can I have this thread halt until a certain trigger point later in the
+	 * code executes in another thread? Mutexes are a possibility, but they're
+	 * ugly and not intended for that. Perhaps Conditional variables?
+	 */
+	/* XXX Sleep for a second to allow the server to initialize */
 	sleep(1);
 
 	SocketFD = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (SocketFD == -1) {
-		perror("can not create a new socket.");
+		perror("Can't create a socket");
 		exit(EXIT_FAILURE);
 	}
 
@@ -60,25 +69,23 @@ void *client_start(void *args)
 		exit(EXIT_FAILURE);
 	}
 
-	int i = 0;
-	char buf[100];
-	char *info = "test\n";
-	while (i++ < 2) {
-		/* Lock the buffer mutex to prevent writing to it */
-		strncpy(buf, info, sizeof(buf));
-		send(SocketFD, buf, sizeof(buf), 0);
-		/* unlock the buffer mutex */
+	/* This loop will terminate when the '/exit' command is recieved from the
+	 * user, it will close the connection with its peer.
+	 */
+	while (strcmp(line, "/exit")) {
+		pthread_mutex_lock(&BUF_mutex);
+			send(SocketFD, line, BUFLENGTH, 0);
+		pthread_mutex_unlock(&BUF_mutex);
 	}
 
-	/* Terminate the connection XXX */
-	send(SocketFD, "/exit", 6, MSG_EOR);
-
+	/* Terminate the connection with our peer*/
 	shutdown(SocketFD, SHUT_RDWR);
 	close(SocketFD);
 
 	pthread_mutex_lock(&IO_mutex);
-	printf("Client finished\n");
+		printf("Client finished\n");
 	pthread_mutex_unlock(&IO_mutex);
+
 	pthread_exit(NULL);
 	return NULL;
 }
