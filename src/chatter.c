@@ -9,12 +9,19 @@
 #include "server.h"
 #include "client.h"
 
+pthread_mutex_t IO_mutex;
+pthread_mutex_t SERV_mutex;
+
 int main(int argc, char **argv)
 {
 	/* Choosing sane default values */
 	char peerIP[32] = "127.0.0.1";
 	int listenPort = 1025, peerPort = 1025;
 	int opt = 0;
+	pthread_t ClientThread, ServerThread;
+	struct Server_arg ServerArg;
+	struct Client_arg ClientArg;
+	pthread_attr_t attr;
 
 	/* Parse command line options */
 	while ((opt = getopt(argc, argv, "h:l:p:")) != -1) {
@@ -38,23 +45,21 @@ int main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	printf("Listening on port %d\n", listenPort);
-	printf("Connecting to %s:%d\n", peerIP, peerPort);
+	/* Setup the Server properties */
+	ServerArg.listen = listenPort;
+
+	/* Setup the Client properties */
+	ClientArg.peerPort = peerPort;
+	strncpy(ClientArg.peerIP, peerIP, sizeof(peerIP));
 
 	/* Create a thread attribute to detach threads on creation */
-	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-	/* threads for listening to incoming/outgoing messages */
-	pthread_t client, server;
+	/* Create and call the threads */
+	pthread_create(&ServerThread, &attr, server_start, (void *)&ServerArg);
+	pthread_create(&ClientThread, &attr, client_start, (void *)&ClientArg);
 
-	/* XXX Define these functions: client_start, server_start */
-	/* XXX Define these structures: client_arg, server_arg */
-	pthread_create(&client, &attr, client_start, client_arg);
-	pthread_create(&server, &attr, server_start, server_arg);
-
-	/* Destroy the attribute object */
 	pthread_attr_destroy(&attr);
 
 	/* TODO
@@ -62,6 +67,9 @@ int main(int argc, char **argv)
 	 * Some point in here the program will call the chatter
 	 * ----------------------------------------------------
 	 */
+	/* XXX Temp busy wait to test threads */
+	for (;;)
+		;
 
 	return (0);
 }
