@@ -1,6 +1,6 @@
-#include <arpa/inet.h> //#include <err.h>
-#include <err.h>
-#include <errno.h>
+#include <arpa/inet.h>
+//#include <err.h>
+//#include <errno.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <pthread.h>
@@ -68,7 +68,7 @@ void *client_start(void *args)
 	}
 
 	/* Pop the next message off the list */
-	while(strstr(line, TERMSTRING) == NULL) {
+	while(sleep(1), strstr(line, TERMSTRING) == NULL) {
 		pthread_mutex_lock(&QUEUE_mutex);
 			if (head.lh_first != NULL) {
 				strncpy(line, head.lh_first->msg, BUFLENGTH);

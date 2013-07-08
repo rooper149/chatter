@@ -1,6 +1,6 @@
 #define _GNU_SOURCE /* getline(3) */
-#include <err.h>
-#include <errno.h>
+//#include <err.h>
+//#include <errno.h>
 #include <getopt.h>
 #include <locale.h>
 #include <pthread.h>
@@ -91,7 +91,6 @@ int main(int argc, char **argv)
 		pthread_mutex_lock(&QUEUE_mutex);
 			n2 = malloc(sizeof *n2);
 			strncpy(n2->msg, line, BUFLENGTH);
-			/* Install the element immediately after the head */
 			LIST_INSERT_HEAD(&head, n2, entries);
 		pthread_mutex_unlock(&QUEUE_mutex);
 	}
