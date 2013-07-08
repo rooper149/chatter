@@ -6,11 +6,11 @@ PROG=		chatter
 
 SRC=		chatter.c client.c server.c
 OBJ=		$(SRC:.c=.o)
-VERSION=	0.0.2
+VERSION=	0.0.3
 OPTS=		-DVERSION=\"$(VERSION)\" #-DNDEBUG 
 
 CC =		gcc
-CFLAGS=		-std=c99 -pedantic-errors -g -Wall -Werror -Og
+CFLAGS=		-std=c99 -pedantic-errors -g -Wall -Werror -O2
 LFLAGS=		
 LDFLAGS=	-lpthread #-lcrypto
 

@@ -1,23 +1,22 @@
-#define _GNU_SOURCE /* readline(3) */
+#define _GNU_SOURCE /* getline(3) */
 #include <err.h>
+#include <errno.h>
 #include <getopt.h>
 #include <locale.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/queue.h>
 #include <unistd.h>
 
 #include "server.h"
 #include "client.h"
-
-#define BUFLENGTH 100
+#include "queue.h"
+#include "def.h"
 
 pthread_mutex_t IO_mutex;
-pthread_mutex_t BUF_mutex;
-
-char *line;
+pthread_mutex_t QUEUE_mutex;
 
 int main(int argc, char **argv)
 {
@@ -55,6 +54,11 @@ int main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	/* Create the message queue */
+	LIST_INIT(&head);
+	n1 = malloc(sizeof *n1);
+	LIST_INSERT_HEAD(&head, n1, entries);
+
 	/* Setup the Server properties */
 	ServerArg.listen = listenPort;
 
@@ -64,7 +68,7 @@ int main(int argc, char **argv)
 
 	/* Create a thread attribute to detach threads on creation */
 	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
 	/* Create and call the threads */
 	pthread_create(&ServerThread, &attr, server_start, (void *)&ServerArg);
@@ -72,15 +76,34 @@ int main(int argc, char **argv)
 
 	pthread_attr_destroy(&attr);
 
-	line = malloc(sizeof(char) * BUFLENGTH);
+	sleep(1);
+
+	char *line = malloc(sizeof(char) * BUFLENGTH);
 	size_t len = BUFLENGTH;
-	while (strstr(line, "/exit") != line) {
-		pthread_mutex_lock(&BUF_mutex);
-			printf(": ");
-			getline(&line, &len, stdin);
-		pthread_mutex_unlock(&BUF_mutex);
+	while (strstr(line, TERMSTRING) == NULL) {
+		pthread_mutex_lock(&IO_mutex);
+			printf("> ");
+		pthread_mutex_unlock(&IO_mutex);
+
+		getline(&line, &len, stdin);
+		line[len] = '\0';
+
+		pthread_mutex_lock(&QUEUE_mutex);
+			n2 = malloc(sizeof *n2);
+			strncpy(n2->msg, line, BUFLENGTH);
+			/* Install the element immediately after the head */
+			LIST_INSERT_HEAD(&head, n2, entries);
+		pthread_mutex_unlock(&QUEUE_mutex);
 	}
 
+	/* Allow for the threads to properly kill themselves */
+	/* .. It's only polite, afterall. */
+	pthread_join(ClientThread, NULL);
+	pthread_join(ServerThread, NULL);
+
+	free(n1);
+	free(n2);
 	free(line);
+
 	return (0);
 }

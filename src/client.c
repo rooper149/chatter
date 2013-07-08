@@ -1,31 +1,31 @@
 #include <arpa/inet.h> //#include <err.h>
-#include <pthread.h>
+#include <err.h>
+#include <errno.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <time.h>
+#include <sys/queue.h>
 #include <unistd.h>
 
-#define BUFLENGTH 100
-
 #include "client.h"
+#include "def.h"
+#include "queue.h"
 
 extern pthread_mutex_t IO_mutex;
-extern pthread_mutex_t BUF_mutex;
-
-extern char *line;
+extern pthread_mutex_t QUEUE_mutex;
 
 void *client_start(void *args)
 {
 	struct Client_arg *data = (struct Client_arg *) args;
-
 	struct sockaddr_in SockAddr;
 	int SocketFD;
 	int Res;
+	char line[BUFLENGTH];
 
 	/* Consider making this idiom a MACRO */
 	pthread_mutex_lock(&IO_mutex);
@@ -33,11 +33,8 @@ void *client_start(void *args)
 	pthread_mutex_unlock(&IO_mutex);
 
 	/* TODO Make this more robust */
-	/* Can I have this thread halt until a certain trigger point later in the
-	 * code executes in another thread? Mutexes are a possibility, but they're
-	 * ugly and not intended for that. Perhaps Conditional variables?
-	 */
 	/* XXX Sleep for a second to allow the server to initialize */
+	/* Very dirty, FIX ME */
 	sleep(1);
 
 	SocketFD = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -62,6 +59,7 @@ void *client_start(void *args)
 		exit(EXIT_FAILURE);
 	}
 
+	/* TODO loop this until we can connect */
 	if (connect(SocketFD, (struct sockaddr *)&SockAddr,
 				sizeof(struct sockaddr_in)) == -1) {
 		perror("Failed to connect");
@@ -69,22 +67,22 @@ void *client_start(void *args)
 		exit(EXIT_FAILURE);
 	}
 
-	/* This loop will terminate when the '/exit' command is recieved from the
-	 * user, it will close the connection with its peer.
-	 */
-	while (strcmp(line, "/exit")) {
-		pthread_mutex_lock(&BUF_mutex);
-			send(SocketFD, line, BUFLENGTH, 0);
-		pthread_mutex_unlock(&BUF_mutex);
+	/* Pop the next message off the list */
+	while(strstr(line, TERMSTRING) == NULL) {
+		pthread_mutex_lock(&QUEUE_mutex);
+			if (head.lh_first != NULL) {
+				strncpy(line, head.lh_first->msg, BUFLENGTH);
+				send(SocketFD, line, BUFLENGTH, 0);
+				LIST_REMOVE(head.lh_first, entries);
+			}
+		pthread_mutex_unlock(&QUEUE_mutex);
 	}
 
 	/* Terminate the connection with our peer*/
 	shutdown(SocketFD, SHUT_RDWR);
 	close(SocketFD);
 
-	pthread_mutex_lock(&IO_mutex);
-		printf("Client finished\n");
-	pthread_mutex_unlock(&IO_mutex);
+	sleep(2);
 
 	pthread_exit(NULL);
 	return NULL;

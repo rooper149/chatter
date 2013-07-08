@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 //#include <err.h>
+//#include <errno.h>
 #include <pthread.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -11,6 +12,7 @@
 #include <unistd.h>
 
 #include "server.h"
+#include "def.h"
 
 extern pthread_mutex_t IO_mutex;
 extern pthread_mutex_t BUF_mutex;
@@ -57,34 +59,18 @@ void *server_start(void *args)
 		exit(EXIT_FAILURE);
 	}
 
-	/* This is an internal buffer, filled with data sent accross the
-	 * network, does not need to be thread-safe. */
-	char netBuf[100];
-
-	/* We can do this fine. Compiler initializes automatic memory for '/exit'
-	 * and points killBuf to it.
-	 */
-	char *killBuf = "/exit";
-	while(strstr(netBuf, killBuf) != netBuf){
-		recv(ConnectFD, netBuf, sizeof(netBuf), 0);
+	char netBuf[BUFLENGTH];
+	while (sleep(1), strstr(netBuf, TERMSTRING) == NULL) {
 		pthread_mutex_lock(&IO_mutex);
-			printf("%s", netBuf);
+			recv(ConnectFD, (void *)netBuf, BUFLENGTH, 0);
+			fprintf(stderr, "< %s", netBuf);
 		pthread_mutex_unlock(&IO_mutex);
 	}
 
-	if (shutdown(ConnectFD, SHUT_RDWR) == -1) {
-		perror("Can't shutdown socket");
-		close(ConnectFD);
-		close(SocketFD);
-		exit(EXIT_FAILURE);
-	}
-
+	shutdown(ConnectFD, SHUT_RDWR);
 	close(ConnectFD);
-	close(SocketFD);
 
-	pthread_mutex_lock(&IO_mutex);
-		printf("Server finished\n");
-	pthread_mutex_unlock(&IO_mutex);
+	close(SocketFD);
 
 	pthread_exit(NULL);
 	return NULL;
