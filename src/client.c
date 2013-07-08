@@ -18,29 +18,31 @@
 
 extern pthread_mutex_t IO_mutex;
 extern pthread_mutex_t QUEUE_mutex;
+extern pthread_mutex_t NETWORK_mutex;
 
-void *client_start(void *args)
+extern pthread_cond_t NETWORK_cond;
+
+void *
+client_start(void *args)
 {
 	struct Client_arg *data = (struct Client_arg *) args;
 	struct sockaddr_in SockAddr;
 	int SocketFD;
 	int Res;
 	char line[BUFLENGTH];
+	char *exitSTR = TERMSTRING;
 
 	/* Consider making this idiom a MACRO */
 	pthread_mutex_lock(&IO_mutex);
 		printf("Connecting to %s:%d\n", data->peerIP, data->peerPort);
 	pthread_mutex_unlock(&IO_mutex);
 
-	/* TODO Make this more robust */
-	/* XXX Sleep for a second to allow the server to initialize */
-	/* Very dirty, FIX ME */
-	sleep(1);
+	pthread_cond_wait(&NETWORK_cond, &NETWORK_mutex);
 
 	SocketFD = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (SocketFD == -1) {
 		perror("Can't create a socket");
-		exit(EXIT_FAILURE);
+		pthread_exit(NULL);
 	}
 
 	memset(&SockAddr, 0, sizeof (struct sockaddr_in));
@@ -56,7 +58,7 @@ void *client_start(void *args)
 	} else if (Res == 0) {
 		perror("Not a valid IP address");
 		close(SocketFD);
-		exit(EXIT_FAILURE);
+		pthread_exit(NULL);
 	}
 
 	/* TODO loop this until we can connect */
@@ -64,11 +66,11 @@ void *client_start(void *args)
 				sizeof(struct sockaddr_in)) == -1) {
 		perror("Failed to connect");
 		close(SocketFD);
-		exit(EXIT_FAILURE);
+		pthread_exit(NULL);
 	}
 
 	/* Pop the next message off the list */
-	while(sleep(1), strstr(line, TERMSTRING) == NULL) {
+	while(sleep(1), strstr(line, exitSTR) == NULL) {
 		pthread_mutex_lock(&QUEUE_mutex);
 			if (head.lh_first != NULL) {
 				strncpy(line, head.lh_first->msg, BUFLENGTH);

@@ -1,3 +1,5 @@
+#ifndef CLIENT_H_
+#define CLIENT_H_
 
 struct Client_arg {
 	char peerIP[32];
@@ -6,3 +8,5 @@ struct Client_arg {
 
 void *
 client_start(void *);
+
+#endif

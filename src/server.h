@@ -1,3 +1,5 @@
+#ifndef SERVER_H_
+#define SERVER_H_
 
 struct Server_arg {
 	int listen;
@@ -5,3 +7,5 @@ struct Server_arg {
 
 void *
 server_start(void *);
+
+#endif
